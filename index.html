@@ -46,18 +46,18 @@
   <!-- START -->
   <div class="overlay" id="start"><div class="panel">
     <div class="title"><span class="dot"></span> RELQ: GLITCH REAPER</div>
-    <div class="subtitle">Back to the original vibe — matrix rain, bots, and your Relq character.</div>
+    <div class="subtitle">Matrix rain, salty bots, red eye glow — now with name leaderboard.</div>
     <div class="grid">
       <div class="card"><h4>Controls</h4><ul>
-        <li><span class="kbd">WASD</span> / <span class="kbd">Arrows</span> — Move</li>
+        <li><span class="kbd">WASD</span>/<span class="kbd">Arrows</span> — Move</li>
         <li><span class="kbd">Mouse</span> — Aim</li>
-        <li><span class="kbd">Hold Left-Click</span> or <span class="kbd">Hold Space</span> — Throw scythe (rate-limited)</li>
+        <li><span class="kbd">Hold Left-Click</span> or <span class="kbd">Hold Space</span> — Throw Scythe</li>
         <li><span class="kbd">P</span> Pause • <span class="kbd">R</span> Restart • <span class="kbd">Esc</span> Menu • <span class="kbd">M</span> Mute</li>
       </ul></div>
       <div class="card"><h4>Tips</h4><ul>
-        <li>Kite bots into lines; slice through for multi-kills.</li>
-        <li>Scythe flies straight and despawns off-screen.</li>
-        <li>Difficulty ramps every 20s.</li>
+        <li>Kite bots into lines; slice for multi-kills.</li>
+        <li>Difficulty ramps over time (speed + spawn rate).</li>
+        <li>Practice mode disables scoring.</li>
       </ul></div>
     </div>
     <div class="actions">
@@ -84,7 +84,7 @@
         <li><span class="kbd">Esc</span> Menu</li>
         <li><span class="kbd">M</span> Mute/Unmute</li>
       </ul></div>
-      <div class="card"><h4>Scoreboard (Top 5)</h4><ul id="scoreList"><li>No scores yet.</li></ul></div>
+      <div class="card"><h4>Leaderboard (Top 10)</h4><ul id="scoreList"><li>No scores yet.</li></ul></div>
     </div>
     <div class="actions">
       <button class="btn primary" id="btnRestart">Restart</button>
@@ -92,14 +92,35 @@
     </div>
   </div></div>
 
+  <!-- NAME OVERLAY -->
+  <div class="overlay hidden" id="nameOverlay">
+    <div class="panel">
+      <div class="title"><span class="dot"></span> Enter Your Name</div>
+      <div class="subtitle">Used on the local leaderboard (stored on this device).</div>
+      <div style="margin-top:12px">
+        <input id="nameInput" maxlength="16" placeholder="Relq"
+               style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#0f1216;color:#e7e7e7;font-size:16px;outline:none;">
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="saveNameBtn">Save</button>
+        <button class="btn" id="skipNameBtn">Skip</button>
+      </div>
+    </div>
+  </div>
+
 <script>
-/* ---------- Config (only edit path/size if needed) ---------- */
+/* ---------- Config ---------- */
 const SPRITE_URL   = 'relq-sprite.png'; // put this PNG next to index.html
-const SPRITE_SCALE = 0.08;              // overall player size
-const EYE_OFFSET_L = {x:-10,y:-6};      // glow offsets to line up with your art
+const SPRITE_SCALE = 0.18;              // overall player size (tweak if too big/small)
+const EYE_OFFSET_L = {x:-10,y:-6};      // glow offsets to line up with art
 const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
+
+/* Leaderboard keys */
+const NAME_KEY = 'relq_player_name';
+const LB_KEY   = 'relq_leaderboard';
+const MAX_LB   = 10;
 
 /* ---------- Helpers ---------- */
 const qs=s=>document.querySelector(s);
@@ -112,6 +133,7 @@ const canvas=qs('#game'), ctx=canvas.getContext('2d');
 const hud={score:qs('#score'),kills:qs('#kills'),hp:qs('#hp'),hi:qs('#hi')};
 const overlays={start:qs('#start'),over:qs('#over'),oScore:qs('#oScore'),oKills:qs('#oKills'),oTime:qs('#oTime'),oHi:qs('#oHi')};
 const scoreList=qs('#scoreList');
+const nameOverlay=qs('#nameOverlay'); const nameInput=qs('#nameInput');
 
 let W=1280,H=720,DPR=1;
 
@@ -148,6 +170,29 @@ const player={x:W/2,y:H/2,r:22,speed:PLAYER_SPEED,angle:0,breath:0};
 const relqImg=new Image(); relqImg.src=SPRITE_URL; let relqReady=false; relqImg.onload=()=>relqReady=true;
 function resetPlayer(){ player.x=W/2; player.y=H/2; player.angle=0; player.breath=0; hp=100; }
 
+/* ---------- Name storage ---------- */
+const getPlayerName=()=>{try{return (localStorage.getItem(NAME_KEY)||'').trim();}catch(e){return '';}};
+const setPlayerName=(name)=>{const clean=(name||'').replace(/[^\w \-.'!]/g,'').trim().slice(0,16)||'Relq';try{localStorage.setItem(NAME_KEY,clean);}catch(e){}return clean;};
+
+/* ---------- Leaderboard ---------- */
+function loadScores(){ try{return JSON.parse(localStorage.getItem(LB_KEY)||'[]');}catch(e){return [];} }
+function saveScores(arr){ try{localStorage.setItem(LB_KEY,JSON.stringify(arr.slice(0,MAX_LB)));}catch(e){} }
+function saveScore(scoreVal,killsVal,timeVal){
+  const name=getPlayerName(); if(!name) return; // don’t save anon runs
+  const arr=loadScores(); arr.push({name,score:scoreVal,kills:killsVal,time:timeVal,ts:Date.now()});
+  arr.sort((a,b)=> b.score-a.score || b.kills-a.kills || a.time-b.time);
+  saveScores(arr);
+}
+function renderScores(){
+  if(!scoreList) return;
+  const arr=loadScores().slice(0,MAX_LB);
+  scoreList.innerHTML = arr.length
+    ? arr.map((s,i)=>`<li>#${i+1} — <strong>${s.name}</strong> • ${s.score} pts • ${s.kills} kills • ${s.time}s</li>`).join('')
+    : '<li>No scores yet.</li>';
+}
+renderScores();
+
+/* ---------- Draw player ---------- */
 function drawPlayer(){
   const px=player.x, py=player.y;
 
@@ -159,24 +204,14 @@ function drawPlayer(){
   // breathing
   player.breath += dt; const breathe = 1 + Math.sin(player.breath*2.2)*0.03;
 
-  // shadow
+  // soft shadow
   ctx.save(); ctx.globalAlpha=0.25; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(px, py+18, 22, 10, 0, 0, TAU); ctx.fill(); ctx.restore();
 
-  ctx.save();
-  ctx.translate(px,py); ctx.rotate(player.angle); ctx.scale(SPRITE_SCALE*breathe, SPRITE_SCALE*breathe);
-
-  if(relqReady){
-    const iw=relqImg.width, ih=relqImg.height;
-    ctx.drawImage(relqImg, -iw/2, -ih/2);
-  }else{
-    // vector fallback while image loads
-    ctx.fillStyle='#0f1218'; ctx.beginPath();
-    ctx.moveTo(-30,18); ctx.quadraticCurveTo(0,44,30,18); ctx.lineTo(30,-6); ctx.quadraticCurveTo(0,-24,-30,-6);
-    ctx.closePath(); ctx.fill(); ctx.strokeStyle='rgba(255,26,26,.6)'; ctx.lineWidth=2; ctx.stroke();
-    ctx.fillStyle='#cfd3d6'; ctx.beginPath(); ctx.arc(-4,-10,14,0,TAU); ctx.fill();
-  }
-
+  // sprite / fallback
+  ctx.save(); ctx.translate(px,py); ctx.rotate(player.angle); ctx.scale(SPRITE_SCALE*breathe, SPRITE_SCALE*breathe);
+  if(relqReady){ const iw=relqImg.width, ih=relqImg.height; ctx.drawImage(relqImg, -iw/2, -ih/2); }
+  else{ ctx.fillStyle='#0f1218'; ctx.beginPath(); ctx.moveTo(-30,18); ctx.quadraticCurveTo(0,44,30,18); ctx.lineTo(30,-6); ctx.quadraticCurveTo(0,-24,-30,-6); ctx.closePath(); ctx.fill(); ctx.strokeStyle='rgba(255,26,26,.6)'; ctx.lineWidth=2; ctx.stroke(); }
   // eye glow
   const blink = 0.9 + Math.sin(performance.now()*0.005)*0.25;
   ctx.globalCompositeOperation='lighter';
@@ -184,16 +219,13 @@ function drawPlayer(){
   ctx.beginPath(); ctx.ellipse(EYE_OFFSET_L.x, EYE_OFFSET_L.y, 5*blink, 3.0, 0, 0, TAU); ctx.fill();
   ctx.beginPath(); ctx.ellipse(EYE_OFFSET_R.x, EYE_OFFSET_R.y, 5*blink, 3.0, 0, 0, TAU); ctx.fill();
   ctx.globalCompositeOperation='source-over';
-
   ctx.restore();
 }
 
-/* ---------- Scythe shots (no boomerang) ---------- */
+/* ---------- Scythe shots (straight, no return) ---------- */
 const shots=[]; let fireHeld=false, fireTimer=0;
 function spawnShot(){ const a=player.angle, c=Math.cos(a), s=Math.sin(a);
-  shots.push({x:player.x+c*26,y:player.y+s*26,vx:c*880,vy:s*880,spin:0});
-  AudioKit.play('throw');
-}
+  shots.push({x:player.x+c*26,y:player.y+s*26,vx:c*880,vy:s*880,spin:0}); AudioKit.play('throw'); }
 function updateShots(dt){
   fireHeld = mouse.down || keys.has(' ');
   fireTimer = Math.max(0, fireTimer - dt);
@@ -222,6 +254,7 @@ function drawShots(){
 /* ---------- Enemies / particles ---------- */
 const enemies=[], parts=[], blood=[], stains=[];
 function spawnEnemy(near=false){
+  // enemy speed increases every 20s
   const m=Math.max(1,1+Math.floor((tNow-tStart)/20000));
   const speed=rand(70,120)+m*18, size=rand(16,22);
   let x,y,pad=40; if(Math.random()<.5){x=Math.random()<.5?-pad:W+pad;y=rand(0,H);}else{y=Math.random()<.5?-pad:H+pad;x=rand(0,W);}
@@ -242,24 +275,8 @@ function updateEnemies(dt){
     if(d<e.r+player.r){ enemies.splice(i,1); hp-=10; score=Math.max(0,score-20); addParticles(px,py,'#00ff88'); AudioKit.play('hurt'); if(hp<=0){ gameOver(); return; } }
   }
 }
-function drawEnemies(){
-  for(const e of enemies){ ctx.save(); ctx.translate(e.x,e.y); const s=e.r*1.6;
-    ctx.fillStyle='#0f1116'; ctx.strokeStyle='rgba(255,26,26,.35)'; ctx.lineWidth=2;
-    if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(-s*0.45,-s*0.5,s*0.9,s*0.9,6); ctx.fill(); ctx.stroke(); }
-    else { ctx.fillRect(-s*0.45,-s*0.5,s*0.9,s*0.9); ctx.strokeRect(-s*0.45,-s*0.5,s*0.9,s*0.9); }
-    ctx.beginPath(); ctx.arc(0,-s*0.6,s*0.38,0,TAU); ctx.fillStyle='#12151b'; ctx.fill();
-    ctx.fillStyle='#12ff99'; ctx.globalAlpha=.85; ctx.fillRect(-s*0.26,-s*0.64,s*0.52,s*0.18); ctx.globalAlpha=1;
-    ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='12px monospace'; ctx.textAlign='center'; ctx.fillText(e.name,0,s*0.8);
-    if(e.tauntShow>0){ const txt=e.taunt.toUpperCase(); const w=Math.max(48, ctx.measureText(txt).width + 16);
-      ctx.save(); ctx.translate(0,-s*1.15); ctx.fillStyle='rgba(0,0,0,.7)'; ctx.strokeStyle='rgba(255,26,26,.5)'; ctx.lineWidth=1.5;
-      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(-w/2,-22,w,20,8); ctx.fill(); ctx.stroke(); }
-      else { ctx.fillRect(-w/2,-22,w,20); ctx.strokeRect(-w/2,-22,w,20); }
-      ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(6,6); ctx.lineTo(-6,6); ctx.closePath(); ctx.fill();
-      ctx.fillStyle='#e6ebef'; ctx.font='11px monospace'; ctx.textAlign='center'; ctx.fillText(txt,0,-8); ctx.restore(); }
-    ctx.restore(); }
-}
 
-/* ---------- Matrix/code rain ---------- */
+/* ---------- Matrix/code rain & effects ---------- */
 const glyphs='ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎ0123456789<>[]{}#$%&+-*/';
 let codeCols=[], colW=16, nCols=0;
 function initCode(){ colW=Math.max(14,Math.min(22,Math.round(W/70))); nCols=Math.ceil(W/colW);
@@ -272,8 +289,6 @@ function drawCode(dt){
       ctx.fillStyle=`rgba(0,255,136,${0.7-k/(c.trail*1.2)})`; ctx.fillText(g,i*colW+8,y); } }
   ctx.restore();
 }
-
-/* ---------- Blood/parts & glitch lines ---------- */
 function updateParticles(dt){
   for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; if(p.t>p.life) parts.splice(i,1); }
   for(let i=blood.length-1;i>=0;i--){ const b=blood[i]; b.t+=dt; b.vy+=b.g*dt; b.x+=b.vx*dt; b.y+=b.vy*dt;
@@ -297,24 +312,31 @@ function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=canvas.clientWi
   canvas.width=W*DPR; canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); initCode(); }
 addEventListener('resize',resize,{passive:true}); resize();
 
-let spawnAcc=0, spawnRate=0.9;
+let spawnAcc=0, spawnRate=0.9; // will be adapted dynamically
 function loop(ts){
   if(!last) last=ts; dt=Math.min(.033,(ts-last)/1000); last=ts; tNow=ts;
   if(state===STATE.PLAY||state===STATE.PRACTICE){
     ctx.clearRect(0,0,W,H);
     drawCode(dt);
 
-    // update
+    // update player
     const dx=mouse.x-player.x, dy=mouse.y-player.y; player.angle=Math.atan2(dy,dx);
     let vx=0,vy=0; if(keys.has('w')||keys.has('arrowup'))vy-=1; if(keys.has('s')||keys.has('arrowdown'))vy+=1;
     if(keys.has('a')||keys.has('arrowleft'))vx-=1; if(keys.has('d')||keys.has('arrowright'))vx+=1;
     const m=Math.hypot(vx,vy)||1; vx/=m; vy/=m; player.x=clamp(player.x+vx*player.speed*dt,0,W); player.y=clamp(player.y+vy*player.speed*dt,0,H);
 
+    // difficulty: spawn rate ramps over time (down to 0.45s)
+    const elapsed=(performance.now()-tStart)/1000;
+    spawnRate=Math.max(0.45, 0.9 - elapsed*0.02);
+
     updateEnemies(dt); updateParticles(dt); updateShots(dt);
 
+    // spawning waves
     spawnAcc+=dt; const mult=state===STATE.PRACTICE?0.6:1;
-    if(spawnAcc>=spawnRate/mult){ spawnAcc=0; spawnEnemy(); if(Math.random()<.35) spawnEnemy(); if(Math.random()<.08) spawnBurst(3,true); }
+    if(spawnAcc>=spawnRate/mult){ spawnAcc=0; spawnEnemy();
+      if(Math.random()<.35) spawnEnemy(); if(Math.random()<.08) spawnBurst(3,true); }
 
+    // draw pass
     drawShots(); drawEnemies(); drawParticles(); drawPlayer(); drawGlitch(); drawRelqMark();
 
     if(state===STATE.PLAY) score += Math.floor(20*dt);
@@ -324,12 +346,12 @@ function loop(ts){
 }
 requestAnimationFrame(loop);
 
-/* ---------- States & scoreboard ---------- */
+/* ---------- States ---------- */
 function startGame(practice=false){
   state = practice ? STATE.PRACTICE : STATE.PLAY;
   overlays.start.classList.add('hidden'); overlays.over.classList.add('hidden');
   score=0; kills=0; hp=100; enemies.length=0; parts.length=0; blood.length=0; stains.length=0; shots.length=0;
-  resetPlayer(); spawnBurst(4,false); tStart=performance.now(); last=0; spawnRate=0.9; fireTimer=0;
+  resetPlayer(); spawnBurst(4,false); tStart=performance.now(); last=0; spawnRate=0.9; spawnAcc=0; fireTimer=0;
 }
 function showMenu(){ state=STATE.MENU; overlays.over.classList.add('hidden'); overlays.start.classList.remove('hidden');
   qs('#start .title').innerHTML='<span class="dot"></span> RELQ: GLITCH REAPER'; }
@@ -338,29 +360,30 @@ function gameOver(){ state=STATE.OVER; overlays.start.classList.add('hidden'); o
   try{ hi=Math.max(hi,score); localStorage.setItem('relq_hi', String(hi)); }catch(e){} hud.hi.textContent=hi; overlays.oHi.textContent=hi;
   saveScore(score,kills, Math.round((performance.now()-tStart)/1000)); renderScores(); AudioKit.play('over'); }
 
-function loadScores(){ try{ return JSON.parse(localStorage.getItem('relq_scores')||'[]'); }catch(e){ return []; } }
-function saveScore(s,k,t){ const arr=loadScores(); arr.push({score:s,kills:k,time:t,ts:Date.now()}); arr.sort((a,b)=>b.score-a.score);
-  try{ localStorage.setItem('relq_scores', JSON.stringify(arr.slice(0,5))); }catch(e){} }
-function renderScores(){ if(!scoreList) return; const arr=loadScores().sort((a,b)=>b.score-a.score).slice(0,5);
-  scoreList.innerHTML = arr.length ? arr.map((s,i)=>`<li>#${i+1} — ${s.score} pts • ${s.kills} kills • ${s.time}s</li>`).join('') : '<li>No scores yet.</li>'; }
-renderScores();
-
-/* ---------- Buttons ---------- */
-qs('#btnStart').addEventListener('click',()=>startGame(false));
+/* ---------- Buttons & name flow ---------- */
 qs('#btnPractice').addEventListener('click',()=>startGame(true));
 qs('#btnRestart').addEventListener('click',()=>restart());
 qs('#btnMenu').addEventListener('click',()=>showMenu());
 qs('#btnToggleSound').addEventListener('click',()=>AudioKit.toggle());
 document.addEventListener('visibilitychange',()=>{ if(document.hidden && !AudioKit.isMuted()) AudioKit.toggle(); });
 
+qs('#btnStart').addEventListener('click',()=>{
+  if(!getPlayerName()){ nameInput.value=''; nameOverlay.classList.remove('hidden'); }
+  else startGame(false);
+});
+qs('#saveNameBtn').addEventListener('click',()=>{
+  const saved=setPlayerName(nameInput.value); nameOverlay.classList.add('hidden'); startGame(false);
+});
+qs('#skipNameBtn').addEventListener('click',()=>{
+  nameOverlay.classList.add('hidden'); startGame(false);
+});
+
 function restart(){ if(state===STATE.PLAY||state===STATE.PRACTICE||state===STATE.OVER) startGame(state===STATE.PRACTICE); }
 function togglePause(){ if(state===STATE.PLAY){ state=STATE.PAUSE; overlays.start.classList.remove('hidden'); qs('#start .title').innerHTML='<span class="dot"></span> Paused'; }
   else if(state===STATE.PAUSE){ startGame(false);} }
 
 /* ---------- Init ---------- */
-function resizeKick(){const e=new Event('resize'); window.dispatchEvent(e);} initCode(); showMenu(); resizeKick();
+function resizeKick(){const e=new Event('resize'); window.dispatchEvent(e);} initCode(); showMenu(); renderScores(); resizeKick();
 </script>
 </body>
 </html>
-
-
