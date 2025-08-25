@@ -110,9 +110,9 @@
 
 <script>
 /* ---------- Config ---------- */
-const SPRITE_URL   = 'relq-sprite.png'; // put this PNG next to index.html
-const SPRITE_SCALE = 0.18;              // overall player size (tweak if too big/small)
-const EYE_OFFSET_L = {x:-10,y:-6};      // glow offsets to line up with art
+const SPRITE_URL   = 'relq-sprite.png'; // your PNG next to index.html
+const SPRITE_SCALE = 0.18;              // tweak size (0.12–0.22)
+const EYE_OFFSET_L = {x:-10,y:-6};      // align glow to art
 const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
@@ -122,7 +122,7 @@ const NAME_KEY = 'relq_player_name';
 const LB_KEY   = 'relq_leaderboard';
 const MAX_LB   = 10;
 
-/* ---------- Helpers ---------- */
+/* ---------- Helpers & DOM ---------- */
 const qs=s=>document.querySelector(s);
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const rand=(a,b)=>Math.random()*(b-a)+a;
@@ -170,15 +170,14 @@ const player={x:W/2,y:H/2,r:22,speed:PLAYER_SPEED,angle:0,breath:0};
 const relqImg=new Image(); relqImg.src=SPRITE_URL; let relqReady=false; relqImg.onload=()=>relqReady=true;
 function resetPlayer(){ player.x=W/2; player.y=H/2; player.angle=0; player.breath=0; hp=100; }
 
-/* ---------- Name storage ---------- */
+/* ---------- Name storage & Leaderboard ---------- */
 const getPlayerName=()=>{try{return (localStorage.getItem(NAME_KEY)||'').trim();}catch(e){return '';}};
 const setPlayerName=(name)=>{const clean=(name||'').replace(/[^\w \-.'!]/g,'').trim().slice(0,16)||'Relq';try{localStorage.setItem(NAME_KEY,clean);}catch(e){}return clean;};
 
-/* ---------- Leaderboard ---------- */
 function loadScores(){ try{return JSON.parse(localStorage.getItem(LB_KEY)||'[]');}catch(e){return [];} }
 function saveScores(arr){ try{localStorage.setItem(LB_KEY,JSON.stringify(arr.slice(0,MAX_LB)));}catch(e){} }
 function saveScore(scoreVal,killsVal,timeVal){
-  const name=getPlayerName(); if(!name) return; // don’t save anon runs
+  const name=getPlayerName(); if(!name) return; // no anon saves
   const arr=loadScores(); arr.push({name,score:scoreVal,kills:killsVal,time:timeVal,ts:Date.now()});
   arr.sort((a,b)=> b.score-a.score || b.kills-a.kills || a.time-b.time);
   saveScores(arr);
@@ -204,15 +203,15 @@ function drawPlayer(){
   // breathing
   player.breath += dt; const breathe = 1 + Math.sin(player.breath*2.2)*0.03;
 
-  // soft shadow
+  // shadow
   ctx.save(); ctx.globalAlpha=0.25; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(px, py+18, 22, 10, 0, 0, TAU); ctx.fill(); ctx.restore();
 
   // sprite / fallback
   ctx.save(); ctx.translate(px,py); ctx.rotate(player.angle); ctx.scale(SPRITE_SCALE*breathe, SPRITE_SCALE*breathe);
-  if(relqReady){ const iw=relqImg.width, ih=relqImg.height; ctx.drawImage(relqImg, -iw/2, -ih/2); }
+  if(relqReady && relqImg.width){ const iw=relqImg.width, ih=relqImg.height; ctx.drawImage(relqImg, -iw/2, -ih/2); }
   else{ ctx.fillStyle='#0f1218'; ctx.beginPath(); ctx.moveTo(-30,18); ctx.quadraticCurveTo(0,44,30,18); ctx.lineTo(30,-6); ctx.quadraticCurveTo(0,-24,-30,-6); ctx.closePath(); ctx.fill(); ctx.strokeStyle='rgba(255,26,26,.6)'; ctx.lineWidth=2; ctx.stroke(); }
-  // eye glow
+  // eyes glow
   const blink = 0.9 + Math.sin(performance.now()*0.005)*0.25;
   ctx.globalCompositeOperation='lighter';
   ctx.fillStyle='rgba(255,26,26,0.9)';
@@ -275,6 +274,57 @@ function updateEnemies(dt){
     if(d<e.r+player.r){ enemies.splice(i,1); hp-=10; score=Math.max(0,score-20); addParticles(px,py,'#00ff88'); AudioKit.play('hurt'); if(hp<=0){ gameOver(); return; } }
   }
 }
+/* ---- The function your console said was missing ---- */
+function drawEnemies(){
+  for(const e of enemies){
+    ctx.save();
+    ctx.translate(e.x, e.y);
+
+    // body
+    ctx.fillStyle = '#0f1116';
+    ctx.beginPath();
+    ctx.arc(0, 0, e.r, 0, TAU);
+    ctx.fill();
+
+    // outline
+    ctx.strokeStyle = 'rgba(255,26,26,0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // head
+    ctx.beginPath();
+    ctx.arc(0, -e.r*0.9, e.r*0.6, 0, TAU);
+    ctx.fillStyle = '#12151b';
+    ctx.fill();
+
+    // visor bar
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#12ff99';
+    ctx.fillRect(-e.r*0.5, -e.r*1.05, e.r, e.r*0.3);
+    ctx.globalAlpha = 1;
+
+    // tiny name tag
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.font = '12px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(e.name, 0, e.r*1.4);
+
+    // taunt bubble
+    if(e.tauntShow>0){
+      const txt = e.taunt.toUpperCase();
+      const w = Math.max(48, ctx.measureText(txt).width + 16);
+      ctx.save();
+      ctx.translate(0, -e.r*2.2);
+      ctx.fillStyle='rgba(0,0,0,0.75)';
+      ctx.strokeStyle='rgba(255,26,26,0.5)'; ctx.lineWidth=1.2;
+      ctx.fillRect(-w/2, -22, w, 22); ctx.strokeRect(-w/2, -22, w, 22);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(6, 8); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#e6ebef'; ctx.font='11px monospace'; ctx.textAlign='center'; ctx.fillText(txt, 0, -6);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
 
 /* ---------- Matrix/code rain & effects ---------- */
 const glyphs='ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎ0123456789<>[]{}#$%&+-*/';
@@ -312,45 +362,50 @@ function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=canvas.clientWi
   canvas.width=W*DPR; canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); initCode(); }
 addEventListener('resize',resize,{passive:true}); resize();
 
-let spawnAcc=0, spawnRate=0.9; // will be adapted dynamically
+let spawnAcc=0, spawnRate=0.9; // adapted dynamically
 function loop(ts){
-  if(!last) last=ts; dt=Math.min(.033,(ts-last)/1000); last=ts; tNow=ts;
-  if(state===STATE.PLAY||state===STATE.PRACTICE){
-    ctx.clearRect(0,0,W,H);
-    drawCode(dt);
+  try{
+    if(!last) last=ts; dt=Math.min(.033,(ts-last)/1000); last=ts; tNow=ts;
+    if(state===STATE.PLAY||state===STATE.PRACTICE){
+      ctx.clearRect(0,0,W,H);
+      drawCode(dt);
 
-    // update player
-    const dx=mouse.x-player.x, dy=mouse.y-player.y; player.angle=Math.atan2(dy,dx);
-    let vx=0,vy=0; if(keys.has('w')||keys.has('arrowup'))vy-=1; if(keys.has('s')||keys.has('arrowdown'))vy+=1;
-    if(keys.has('a')||keys.has('arrowleft'))vx-=1; if(keys.has('d')||keys.has('arrowright'))vx+=1;
-    const m=Math.hypot(vx,vy)||1; vx/=m; vy/=m; player.x=clamp(player.x+vx*player.speed*dt,0,W); player.y=clamp(player.y+vy*player.speed*dt,0,H);
+      // player move/aim
+      const dx=mouse.x-player.x, dy=mouse.y-player.y; player.angle=Math.atan2(dy,dx);
+      let vx=0,vy=0; if(keys.has('w')||keys.has('arrowup'))vy-=1; if(keys.has('s')||keys.has('arrowdown'))vy+=1;
+      if(keys.has('a')||keys.has('arrowleft'))vx-=1; if(keys.has('d')||keys.has('arrowright'))vx+=1;
+      const m=Math.hypot(vx,vy)||1; vx/=m; vy/=m; player.x=clamp(player.x+vx*player.speed*dt,0,W); player.y=clamp(player.y+vy*player.speed*dt,0,H);
 
-    // difficulty: spawn rate ramps over time (down to 0.45s)
-    const elapsed=(performance.now()-tStart)/1000;
-    spawnRate=Math.max(0.45, 0.9 - elapsed*0.02);
+      // spawn rate ramps (down to 0.45s)
+      const elapsed=(performance.now()-tStart)/1000; spawnRate=Math.max(0.45,0.9-elapsed*0.02);
 
-    updateEnemies(dt); updateParticles(dt); updateShots(dt);
+      updateEnemies(dt); updateParticles(dt); updateShots(dt);
 
-    // spawning waves
-    spawnAcc+=dt; const mult=state===STATE.PRACTICE?0.6:1;
-    if(spawnAcc>=spawnRate/mult){ spawnAcc=0; spawnEnemy();
-      if(Math.random()<.35) spawnEnemy(); if(Math.random()<.08) spawnBurst(3,true); }
+      // spawning
+      spawnAcc+=dt; const mult=state===STATE.PRACTICE?0.6:1;
+      if(spawnAcc>=spawnRate/mult){ spawnAcc=0; spawnEnemy(); if(Math.random()<.35) spawnEnemy(); if(Math.random()<.08) spawnBurst(3,true); }
 
-    // draw pass
-    drawShots(); drawEnemies(); drawParticles(); drawPlayer(); drawGlitch(); drawRelqMark();
+      // draw order
+      drawShots(); drawEnemies(); drawParticles(); drawPlayer(); drawGlitch(); drawRelqMark();
 
-    if(state===STATE.PLAY) score += Math.floor(20*dt);
-    hud.score.textContent=score; hud.kills.textContent=kills; hud.hp.textContent=Math.max(0,Math.min(100,hp));
+      if(state===STATE.PLAY) score += Math.floor(20*dt);
+      hud.score.textContent=score; hud.kills.textContent=kills; hud.hp.textContent=Math.max(0,Math.min(100,hp));
+    }
+  }catch(err){
+    console.error(err);
+    ctx.save(); ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(10,10,560,28);
+    ctx.fillStyle='#ff6'; ctx.font='14px monospace';
+    ctx.fillText('Runtime error: ' + (err && err.message ? err.message : String(err)), 18, 30); ctx.restore();
   }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-/* ---------- States ---------- */
+/* ---------- States & buttons ---------- */
 function startGame(practice=false){
   state = practice ? STATE.PRACTICE : STATE.PLAY;
   overlays.start.classList.add('hidden'); overlays.over.classList.add('hidden');
-  score=0; kills=0; hp=100; enemies.length=0; parts.length=0; blood.length=0; stains.length=0; shots.length=0;
+  score=0;kills=0;hp=100;enemies.length=0;parts.length=0;blood.length=0;stains.length=0;shots.length=0;
   resetPlayer(); spawnBurst(4,false); tStart=performance.now(); last=0; spawnRate=0.9; spawnAcc=0; fireTimer=0;
 }
 function showMenu(){ state=STATE.MENU; overlays.over.classList.add('hidden'); overlays.start.classList.remove('hidden');
@@ -360,7 +415,6 @@ function gameOver(){ state=STATE.OVER; overlays.start.classList.add('hidden'); o
   try{ hi=Math.max(hi,score); localStorage.setItem('relq_hi', String(hi)); }catch(e){} hud.hi.textContent=hi; overlays.oHi.textContent=hi;
   saveScore(score,kills, Math.round((performance.now()-tStart)/1000)); renderScores(); AudioKit.play('over'); }
 
-/* ---------- Buttons & name flow ---------- */
 qs('#btnPractice').addEventListener('click',()=>startGame(true));
 qs('#btnRestart').addEventListener('click',()=>restart());
 qs('#btnMenu').addEventListener('click',()=>showMenu());
@@ -372,7 +426,7 @@ qs('#btnStart').addEventListener('click',()=>{
   else startGame(false);
 });
 qs('#saveNameBtn').addEventListener('click',()=>{
-  const saved=setPlayerName(nameInput.value); nameOverlay.classList.add('hidden'); startGame(false);
+  setPlayerName(nameInput.value); nameOverlay.classList.add('hidden'); startGame(false);
 });
 qs('#skipNameBtn').addEventListener('click',()=>{
   nameOverlay.classList.add('hidden'); startGame(false);
