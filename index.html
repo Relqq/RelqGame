@@ -135,7 +135,7 @@ const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
 const BASE_HP       = 100;
-const BUILD_VERSION = 'v2026.10.05-2';
+const BUILD_VERSION = 'v2026.10.05-3';
 
 /* Leaderboard keys */
 const NAME_KEY = 'relq_player_name';
@@ -333,12 +333,12 @@ function drawShots(){
     ctx.lineTo(11.5,-11.8);
     ctx.stroke();
 
-    // curved scythe blade
+    // reaper blade: longer and straighter with only slight curvature
     ctx.beginPath();
     ctx.moveTo(11.5,-11.8);
-    ctx.quadraticCurveTo(25,-27,43,-8.5);
-    ctx.quadraticCurveTo(33,-9.2,24.5,-6.4);
-    ctx.quadraticCurveTo(17.5,-7.8,12.2,-10.6);
+    ctx.quadraticCurveTo(28,-18.5,44,-7.8);
+    ctx.quadraticCurveTo(35,-7.4,26.2,-6.1);
+    ctx.quadraticCurveTo(18.4,-7.4,12.3,-10.8);
     ctx.closePath();
     const g=ctx.createLinearGradient(11,-21,43,-5);
     g.addColorStop(0,'#f7fafc');
