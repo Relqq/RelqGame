@@ -135,7 +135,7 @@ const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
 const BASE_HP       = 100;
-const BUILD_VERSION = 'v2026.10.05-3';
+const BUILD_VERSION = 'v2026.10.05-4';
 
 /* Leaderboard keys */
 const NAME_KEY = 'relq_player_name';
@@ -333,12 +333,13 @@ function drawShots(){
     ctx.lineTo(11.5,-11.8);
     ctx.stroke();
 
-    // reaper blade: longer and straighter with only slight curvature
+    // L-shape scythe head: short side with only slight curve
     ctx.beginPath();
     ctx.moveTo(11.5,-11.8);
-    ctx.quadraticCurveTo(28,-18.5,44,-7.8);
-    ctx.quadraticCurveTo(35,-7.4,26.2,-6.1);
-    ctx.quadraticCurveTo(18.4,-7.4,12.3,-10.8);
+    ctx.lineTo(30.5,-11.5);                 // long top edge of the L head
+    ctx.quadraticCurveTo(36.5,-11,36.8,-7.8); // tiny curve at tip only
+    ctx.lineTo(25.8,-6.4);                  // short side of the L
+    ctx.quadraticCurveTo(19.6,-7.0,12.3,-10.8); // slight inward curve near neck
     ctx.closePath();
     const g=ctx.createLinearGradient(11,-21,43,-5);
     g.addColorStop(0,'#f7fafc');
