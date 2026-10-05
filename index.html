@@ -300,16 +300,72 @@ function updateShots(dt){
 function drawShots(){
   for(const s of shots){ ctx.save(); ctx.translate(s.x,s.y);
     const ang=Math.atan2(s.vy,s.vx)+s.spin; ctx.rotate(ang);
-    ctx.strokeStyle='#c4a67a'; ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(8,-2); ctx.quadraticCurveTo(26,-10,42,-4); ctx.quadraticCurveTo(26,8,8,2); ctx.closePath();
-    const g=ctx.createLinearGradient(10,-12,56,12); g.addColorStop(0,'#f6f9fc'); g.addColorStop(1,'#c6cdd4'); ctx.fillStyle=g; ctx.fill();
-    ctx.shadowColor='rgba(255,26,26,.85)'; ctx.shadowBlur=10; ctx.strokeStyle='rgba(255,26,26,.9)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.globalAlpha=.35; ctx.fillStyle='rgba(255,26,26,.35)'; ctx.fillRect(-18,-1,12,2); ctx.restore();
+    // handle
+    ctx.strokeStyle='#8a6744';
+    ctx.lineWidth=3.6;
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(-24,0);
+    ctx.lineTo(12,0);
+    ctx.stroke();
+
+    // pommel
+    ctx.fillStyle='#6c4b30';
+    ctx.beginPath();
+    ctx.arc(-25,0,2.8,0,TAU);
+    ctx.fill();
+
+    // neck
+    ctx.strokeStyle='#d6dce2';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(10,0);
+    ctx.lineTo(18,-2);
+    ctx.stroke();
+
+    // blade (crescent)
+    ctx.beginPath();
+    ctx.moveTo(14,-3);
+    ctx.quadraticCurveTo(33,-24,60,-10);
+    ctx.quadraticCurveTo(44,-3,30,6);
+    ctx.quadraticCurveTo(47,-1,58,-8);
+    ctx.quadraticCurveTo(34,-30,14,-3);
+    ctx.closePath();
+    const g=ctx.createLinearGradient(16,-22,62,10);
+    g.addColorStop(0,'#f7fafc');
+    g.addColorStop(0.52,'#d7dee6');
+    g.addColorStop(1,'#9ea8b3');
+    ctx.fillStyle=g;
+    ctx.fill();
+    ctx.shadowColor='rgba(255,26,26,.92)';
+    ctx.shadowBlur=12;
+    ctx.strokeStyle='rgba(255,26,26,.85)';
+    ctx.lineWidth=1.1;
+    ctx.stroke();
+
+    // trailing glow
+    ctx.globalAlpha=.34;
+    ctx.fillStyle='rgba(255,26,26,.42)';
+    ctx.fillRect(-34,-1.2,14,2.4);
+    ctx.restore();
   }
 }
 
 /* ---------- Enemies / particles ---------- */
 const enemies=[], parts=[], blood=[], stains=[];
+const BAD_PLAYER_NAMES = [
+  'xXNoRecoilXx','AimAssistAndy','LagSwitchLuke','CronusCarl','PeekAbuser',
+  'SlideSpamSam','HeadglitchHarry','WhiffWizard','CamperCore','ThirdPartyTom',
+  'NoScopeNancy','ControllerKing','GFuelGoblin','OneTapOtto','DesyncDude',
+  'PixelPeekPete','SmurfLord','TiltMachine','ClipFarmer','BotLobbyBilly',
+  'CrosshairCrutch','MetaSlave','HardstuckHero','LowSenseLarry','SprayNPray'
+];
+function randomBadPlayerName(){
+  const base = BAD_PLAYER_NAMES[randInt(0, BAD_PLAYER_NAMES.length)];
+  const suffix = randInt(0, 9999).toString().padStart(3, '0');
+  const tag = ['TTV','YT','_tv','gg','fps','pro'][randInt(0,6)];
+  return Math.random() < 0.65 ? `${base}${suffix}` : `${base}_${tag}`;
+}
 function spawnEnemy(near=false){
   const m=Math.max(1, wave);
   const speed=rand(70,120)+m*14, size=rand(16,22);
@@ -319,7 +375,7 @@ function spawnEnemy(near=false){
   enemies.push({
     kind:'grunt',
     x,y,r:size,spd:speed,t:0,hp:1,score:30,contactDamage:10,
-    name:'SaltyBot_'+randInt(1000,9999),
+    name:randomBadPlayerName(),
     taunt:taunts[randInt(0,taunts.length)],tauntShow:0,tauntCd:rand(1.5,4)
   });
 }
@@ -434,8 +490,55 @@ function drawEnemies(){
 /* ---------- Matrix/code rain & effects ---------- */
 const glyphs='ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎ0123456789<>[]{}#$%&+-*/';
 let codeCols=[], colW=16, nCols=0;
+const bgOrbs=[], bgLines=[];
+function initBackgroundDeco(){
+  bgOrbs.length = 0;
+  bgLines.length = 0;
+  const orbCount = Math.max(18, Math.floor((W * H) / 75000));
+  for(let i=0;i<orbCount;i++){
+    bgOrbs.push({
+      x: rand(0,W), y: rand(0,H), r: rand(1.2,3.5),
+      a: rand(0.08,0.34), spd: rand(8,34), drift: rand(-12,12)
+    });
+  }
+  for(let i=0;i<12;i++){
+    bgLines.push({
+      y: rand(30,H-30), x: rand(-W*0.2, W), len: rand(W*0.25, W*0.55), spd: rand(10,42), a: rand(0.05,0.16)
+    });
+  }
+}
 function initCode(){ colW=Math.max(14,Math.min(22,Math.round(W/70))); nCols=Math.ceil(W/colW);
   codeCols.length=0; for(let i=0;i<nCols;i++) codeCols.push({y:rand(-H,H),spd:rand(60,180),trail:randInt(8,22)}); }
+function drawBackgroundDeco(dt){
+  ctx.save();
+  // drifting fog lines
+  for(const ln of bgLines){
+    ln.x += ln.spd * dt;
+    if(ln.x - ln.len > W + 40){ ln.x = -rand(W*0.25, W*0.65); ln.y = rand(24,H-24); }
+    ctx.globalAlpha = ln.a;
+    ctx.fillStyle = 'rgba(0,210,120,0.25)';
+    ctx.fillRect(ln.x - ln.len, ln.y, ln.len, 1.2);
+  }
+  // floating orbs
+  for(const o of bgOrbs){
+    o.y += o.spd * dt;
+    o.x += o.drift * dt;
+    if(o.y > H + 6){ o.y = -8; o.x = rand(0,W); }
+    if(o.x < -8) o.x = W + 8;
+    if(o.x > W + 8) o.x = -8;
+    ctx.globalAlpha = o.a;
+    ctx.fillStyle = 'rgba(130,255,205,0.85)';
+    ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,TAU); ctx.fill();
+  }
+  // vignette ring
+  const ring = ctx.createRadialGradient(W*0.5,H*0.5,Math.min(W,H)*0.18, W*0.5,H*0.5,Math.max(W,H)*0.8);
+  ring.addColorStop(0,'rgba(0,0,0,0)');
+  ring.addColorStop(1,'rgba(0,0,0,0.48)');
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = ring;
+  ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
 function drawCode(dt){
   ctx.save(); ctx.globalAlpha=.75; ctx.fillStyle='#06130a'; ctx.fillRect(0,0,W,H); ctx.font='16px monospace';
   for(let i=0;i<nCols;i++){ const c=codeCols[i]; c.y+=c.spd*dt; if(c.y>H+20){ c.y=-rand(40,H*.5); c.spd=rand(60,180); c.trail=randInt(8,22); }
@@ -543,7 +646,7 @@ function drawWaveBanner(){
 
 /* ---------- Sizing & loop ---------- */
 function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=canvas.clientWidth; H=canvas.clientHeight;
-  canvas.width=W*DPR; canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); initCode(); }
+  canvas.width=W*DPR; canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); initCode(); initBackgroundDeco(); }
 addEventListener('resize',resize,{passive:true}); resize();
 
 let spawnAcc=0, spawnRate=0.9; // practice mode only
@@ -552,6 +655,7 @@ function loop(ts){
     if(!last) last=ts; dt=Math.min(.033,(ts-last)/1000); last=ts; tNow=ts;
     if(state===STATE.PLAY||state===STATE.PRACTICE){
       ctx.clearRect(0,0,W,H);
+      drawBackgroundDeco(dt);
       drawCode(dt);
 
       // player move/aim
