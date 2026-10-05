@@ -135,7 +135,7 @@ const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
 const BASE_HP       = 100;
-const BUILD_VERSION = 'v2026.10.05-4';
+const BUILD_VERSION = 'v2026.10.05-5';
 
 /* Leaderboard keys */
 const NAME_KEY = 'relq_player_name';
@@ -599,15 +599,15 @@ function drawRelqMark(){ ctx.save(); ctx.globalAlpha=.18; const x=W-200,y=56; ct
 /* ---------- Wave + upgrade flow ---------- */
 function beginWave(nextWave){
   wave = nextWave;
-  waveBannerT = 2.2;
+  waveBannerT = 1.3;
   waveIntermissionT = 0;
   waveBossRequired = wave % 4 === 0;
   waveBossSpawned = false;
   waveBossAlive = false;
   waveKillsThisWave = 0;
-  waveEnemiesToSpawn = 6 + Math.floor(wave * 2.8);
+  waveEnemiesToSpawn = 5 + Math.floor(wave * 2.2);
   waveKillsTarget = waveEnemiesToSpawn + (waveBossRequired ? 1 : 0);
-  waveSpawnInterval = Math.max(0.24, 0.74 - (wave * 0.03));
+  waveSpawnInterval = Math.max(0.14, 0.5 - (wave * 0.024));
   waveSpawnTimer = 0;
   hud.wave.textContent = wave;
 }
@@ -649,13 +649,13 @@ function showUpgradeOverlay(){
 
 function completeWave(){
   score += 80 + (wave * 15);
-  waveIntermissionT = 2.3;
+  waveIntermissionT = 1.0;
   if((wave % 3) === 0){
     setTimeout(()=>{
       if(state===STATE.PLAY || state===STATE.PAUSE){
         showUpgradeOverlay();
       }
-    }, 300);
+    }, 120);
   }
 }
 
