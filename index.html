@@ -31,10 +31,16 @@
   .footer{margin-top:10px;color:#a7b0b8;font-size:12px}
   .kbd{background:#111418;border:1px solid rgba(255,255,255,.12);padding:2px 6px;border-radius:6px;font-weight:700;font-size:12px}
   .hidden{display:none}
+  .build-ver{
+    position:fixed;right:12px;bottom:10px;z-index:20;pointer-events:none;
+    background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.14);
+    color:#cfd7df;padding:4px 8px;border-radius:8px;font-size:11px;letter-spacing:.4px
+  }
 </style>
 </head>
 <body>
   <div id="wrap"><canvas id="game" width="1280" height="720"></canvas></div>
+  <div class="build-ver" id="buildVer">build v2026.10.05-2</div>
 
   <div class="hud"><div class="bar">
     <div class="chip"><span class="k">Score</span> <span class="v" id="score">0</span></div>
@@ -129,6 +135,7 @@ const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
 const BASE_HP       = 100;
+const BUILD_VERSION = 'v2026.10.05-2';
 
 /* Leaderboard keys */
 const NAME_KEY = 'relq_player_name';
@@ -148,6 +155,8 @@ const overlays={start:qs('#start'),over:qs('#over'),oScore:qs('#oScore'),oKills:
 const scoreList=qs('#scoreList');
 const nameOverlay=qs('#nameOverlay'); const nameInput=qs('#nameInput');
 const upgradeOverlay=qs('#upgradeOverlay'); const upgradeGrid=qs('#upgradeGrid');
+const buildVerEl=qs('#buildVer');
+if(buildVerEl) buildVerEl.textContent = `build ${BUILD_VERSION}`;
 
 let W=1280,H=720,DPR=1;
 
