@@ -135,7 +135,7 @@ const EYE_OFFSET_R = {x: 10,y:-6};
 const FIRE_COOLDOWN = 0.18;
 const PLAYER_SPEED  = 340;
 const BASE_HP       = 100;
-const BUILD_VERSION = 'v2026.10.05-5';
+const BUILD_VERSION = 'v2026.10.05-6';
 
 /* Leaderboard keys */
 const NAME_KEY = 'relq_player_name';
@@ -333,13 +333,14 @@ function drawShots(){
     ctx.lineTo(11.5,-11.8);
     ctx.stroke();
 
-    // L-shape scythe head: short side with only slight curve
+    // strict L-shape scythe head (mostly straight; tiny curve on short edge only)
     ctx.beginPath();
     ctx.moveTo(11.5,-11.8);
-    ctx.lineTo(30.5,-11.5);                 // long top edge of the L head
-    ctx.quadraticCurveTo(36.5,-11,36.8,-7.8); // tiny curve at tip only
-    ctx.lineTo(25.8,-6.4);                  // short side of the L
-    ctx.quadraticCurveTo(19.6,-7.0,12.3,-10.8); // slight inward curve near neck
+    ctx.lineTo(31.8,-11.8);                    // straight long top edge
+    ctx.lineTo(31.8,-10.6);                    // short vertical turn
+    ctx.quadraticCurveTo(32.2,-8.6,30.1,-7.2); // tiny outward curve on short side
+    ctx.lineTo(22.4,-6.0);                     // short side runback
+    ctx.lineTo(12.3,-10.8);                    // straight return to neck
     ctx.closePath();
     const g=ctx.createLinearGradient(11,-21,43,-5);
     g.addColorStop(0,'#f7fafc');
