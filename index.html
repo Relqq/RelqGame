@@ -309,38 +309,39 @@ function updateShots(dt){
 function drawShots(){
   for(const s of shots){ ctx.save(); ctx.translate(s.x,s.y);
     const ang=Math.atan2(s.vy,s.vx)+s.spin; ctx.rotate(ang);
-    // handle
+    // smaller L-shape scythe handle
     ctx.strokeStyle='#8a6744';
-    ctx.lineWidth=3.6;
+    ctx.lineWidth=2.8;
     ctx.lineCap='round';
     ctx.beginPath();
-    ctx.moveTo(-24,0);
-    ctx.lineTo(12,0);
+    ctx.moveTo(-14,0);
+    ctx.lineTo(7,0);
+    ctx.lineTo(7,-8);
     ctx.stroke();
 
     // pommel
     ctx.fillStyle='#6c4b30';
     ctx.beginPath();
-    ctx.arc(-25,0,2.8,0,TAU);
+    ctx.arc(-14.5,0,2.1,0,TAU);
     ctx.fill();
 
     // neck
     ctx.strokeStyle='#d6dce2';
-    ctx.lineWidth=2;
+    ctx.lineWidth=1.6;
     ctx.beginPath();
-    ctx.moveTo(10,0);
-    ctx.lineTo(18,-2);
+    ctx.moveTo(7,-8);
+    ctx.lineTo(11,-9.5);
     ctx.stroke();
 
-    // blade (crescent)
+    // curved blade (compact sickle arc)
     ctx.beginPath();
-    ctx.moveTo(14,-3);
-    ctx.quadraticCurveTo(33,-24,60,-10);
-    ctx.quadraticCurveTo(44,-3,30,6);
-    ctx.quadraticCurveTo(47,-1,58,-8);
-    ctx.quadraticCurveTo(34,-30,14,-3);
+    ctx.moveTo(10.5,-10);
+    ctx.quadraticCurveTo(22,-23,37,-15);
+    ctx.quadraticCurveTo(28,-10,20,-4);
+    ctx.quadraticCurveTo(30,-6,36,-12);
+    ctx.quadraticCurveTo(23,-27,10.5,-10);
     ctx.closePath();
-    const g=ctx.createLinearGradient(16,-22,62,10);
+    const g=ctx.createLinearGradient(11,-20,40,-3);
     g.addColorStop(0,'#f7fafc');
     g.addColorStop(0.52,'#d7dee6');
     g.addColorStop(1,'#9ea8b3');
@@ -353,9 +354,9 @@ function drawShots(){
     ctx.stroke();
 
     // trailing glow
-    ctx.globalAlpha=.34;
+    ctx.globalAlpha=.28;
     ctx.fillStyle='rgba(255,26,26,.42)';
-    ctx.fillRect(-34,-1.2,14,2.4);
+    ctx.fillRect(-22,-1,9,2);
     ctx.restore();
   }
 }
@@ -385,7 +386,7 @@ function spawnEnemy(near=false){
     kind:'grunt',
     x,y,r:size,spd:speed,t:0,hp:1,score:30,contactDamage:10,
     name:randomBadPlayerName(),
-    taunt:taunts[randInt(0,taunts.length)],tauntShow:0,tauntCd:rand(1.5,4)
+    taunt:taunts[randInt(0,taunts.length)],tauntShow:0,tauntCd:rand(0.7,2.4)
   });
 }
 function spawnMiniBoss(){
@@ -413,7 +414,7 @@ function updateEnemies(dt){
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i]; e.t+=dt; e.tauntCd-=dt; if(e.tauntShow>0) e.tauntShow-=dt;
     const dx=px-e.x, dy=py-e.y, d=Math.hypot(dx,dy)||1; const ux=dx/d, uy=dy/d; const speed=e.spd*(1+0.1*Math.sin(e.t*3));
-    e.x+=ux*speed*dt; e.y+=uy*speed*dt; if(e.tauntCd<=0 && d<260){ e.tauntShow=rand(1.0,1.8); e.tauntCd=rand(2.8,5.5); }
+    e.x+=ux*speed*dt; e.y+=uy*speed*dt; if(e.tauntCd<=0 && d<380){ e.tauntShow=rand(1.0,1.8); e.tauntCd=rand(1.8,3.8); }
     if(d<e.r+player.r){
       enemies.splice(i,1);
       if(e.kind === 'boss'){ waveBossAlive = false; }
